@@ -17,9 +17,9 @@ public class ConnectionsListener extends Thread {
 				while (true) {
 					wait();
 
-					for (EscuchaCliente conectado : Servidor.getClientesConectados()) {
-						if(conectado.getPaqueteUsuario().getEstado()){
-							PaqueteDeUsuarios pdu = (PaqueteDeUsuarios) new PaqueteDeUsuarios(Servidor.getUsuariosConectados()).clone();
+					for (ClientListener conectado : Server.getClientesConectados()) {
+						if(conectado.getUsuario().getEstado()){
+							PaqueteDeUsuarios pdu = (PaqueteDeUsuarios) new PaqueteDeUsuarios(Server.getUsuariosConectados()).clone();
 							pdu.setComando(Comando.CONNECT);
 							conectado.getSalida().writeObject(gson.toJson(pdu));		
 						}

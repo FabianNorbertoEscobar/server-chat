@@ -18,16 +18,18 @@ import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 
 import client.PaqueteMensaje;
-import client.PaqueteUsuario;
+import client.Usuario;
 import java.awt.TextArea;
 import java.awt.Color;
 import java.awt.Font;
 
-public class Servidor extends Thread {
+public class Server extends Thread {
+	
+	private static ArrayList<ClientListener> clientesConectados = new ArrayList<>();
+	public static Map<String, Socket> mapConectados = new HashMap<>();
+	
 	public static ArrayList<Socket> SocketsConectados = new ArrayList<Socket>();
 	public static ArrayList<String> UsuariosConectados = new ArrayList<String>();
-	private static ArrayList<EscuchaCliente> clientesConectados = new ArrayList<>();
-	public static Map<String, Socket> mapConectados = new HashMap<>();
 	
 	private static ServerSocket serverSocket;
 	private final int puerto = 3000;
@@ -39,94 +41,46 @@ public class Servidor extends Thread {
 	
 	public static ConnectionsListener connectionsListener;
 	
-	public static void main(String[] args) {
-		load();
+	public static ArrayList<ClientListener> getClientesConectados() {
+		return clientesConectados;
+	}
+
+	public static void setClientesConectados(ArrayList<ClientListener> clientesConectados) {
+		Server.clientesConectados = clientesConectados;
+	}
+
+	public static ArrayList<String> getUsuariosConectados() {
+		return UsuariosConectados;
 	}
 	
-	private static void load() {
-		JFrame ventana = new JFrame("Chat Server");
-		ventana.getContentPane().setBackground(Color.PINK);
-		ventana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		ventana.setSize(542, 538);
-		ventana.setResizable(false);
-		ventana.setLocationRelativeTo(null);
-		ventana.getContentPane().setLayout(null);
+	public static ArrayList<Socket> getSocketsConectados() {
+		return SocketsConectados;
+	}
 
-		JScrollPane scrollPane = new JScrollPane();
-		scrollPane.setBounds(12, 13, 512, 434);
-		ventana.getContentPane().add(scrollPane);
-		log.setFont(new Font("Comic Sans MS", Font.PLAIN, 13));
-		log.setEditable(false);
-		
-		scrollPane.setViewportView(log);
-		
-		final JButton botonIniciar = new JButton();
-		final JButton botonDetener = new JButton();
-		botonIniciar.setText("Start");
-		botonIniciar.setBounds(354, 459, 170, 50);
-		botonIniciar.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				server = new Thread(new Servidor());
-				server.start();
-				botonIniciar.setEnabled(false);
-				botonDetener.setEnabled(true);
-			}
-		});
+	public static void setSocketsConectados(ArrayList<Socket> socketsConectados) {
+		SocketsConectados = socketsConectados;
+	}
 
-		ventana.getContentPane().add(botonIniciar);
+	public static boolean loguearUsuario(Usuario user) {
+		boolean result = true;
+		if(UsuariosConectados.contains(user.getUsername())) {
+			result = false;
+		}
+		if (result) {
+			Server.log.append(user.getUsername() + " logged in" + System.lineSeparator());
+			return true;
+		} else {
+			Server.log.append(user.getUsername() + " is already logged in" + System.lineSeparator());
+			return false;
+		}
+	}
+	
+	public static Map<String, Socket> getPersonajesConectados() {
+		return mapConectados;
+	}
 
-		botonDetener.setText("Stop");
-		botonDetener.setBounds(12, 459, 184, 50);
-		botonDetener.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				try {
-					estadoServer = false;
-					UsuariosConectados = new ArrayList<String>();
-					server.stop();
-					connectionsListener.stop();
-					for (EscuchaCliente cliente : clientesConectados) {
-						cliente.getSalida().close();
-						cliente.getEntrada().close();
-						cliente.getSocket().close();
-					}
-					serverSocket.close();
-					log.append("El servidor se ha detenido." + System.lineSeparator());
-				} catch (IOException e1) {
-					log.append("Fallo al intentar detener el servidor." + System.lineSeparator());
-					e1.printStackTrace();
-				}
-				botonDetener.setEnabled(false);
-				botonIniciar.setEnabled(true);
-			}
-		});
-		botonDetener.setEnabled(false);
-		ventana.getContentPane().add(botonDetener);
-		ventana.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-		
-		ventana.addWindowListener(new WindowAdapter() {
-			public void windowClosing(WindowEvent evt) {
-				if (serverSocket != null) {
-					try {
-						estadoServer = false;
-						UsuariosConectados = new ArrayList<String>();
-						server.stop();
-						connectionsListener.stop();
-						for (EscuchaCliente cliente : clientesConectados) {
-							cliente.getSalida().close();
-							cliente.getEntrada().close();
-							cliente.getSocket().close();
-						}
-						serverSocket.close();
-					} catch (IOException e) {
-						log.append("Fallo al intentar detener el servidor." + System.lineSeparator());
-						e.printStackTrace();
-						System.exit(1);
-					}
-				}
-				System.exit(0);
-			}
-		});
-		ventana.setVisible(true);
+	public static void setPersonajesConectados(Map<String, Socket> personajesConectados) {
+		Server.mapConectados = personajesConectados;
 	}
 	
 	@Override
@@ -151,7 +105,7 @@ public class Servidor extends Thread {
 				ObjectOutputStream salida = new ObjectOutputStream(cliente.getOutputStream());
 				ObjectInputStream entrada = new ObjectInputStream(cliente.getInputStream());
 				
-				EscuchaCliente atencion = new EscuchaCliente(ipRemota, cliente, entrada, salida);
+				ClientListener atencion = new ClientListener(ipRemota, cliente, entrada, salida);
 				atencion.start();
 				clientesConectados.add(atencion);
 			}
@@ -160,45 +114,87 @@ public class Servidor extends Thread {
 		}
 	}
 	
-	public static ArrayList<EscuchaCliente> getClientesConectados() {
-		return clientesConectados;
-	}
+	public static void main(String[] args) {
+		JFrame ventana = new JFrame("Chat Server");
+		ventana.getContentPane().setBackground(Color.PINK);
+		ventana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		ventana.setSize(542, 538);
+		ventana.setResizable(false);
+		ventana.setLocationRelativeTo(null);
+		ventana.getContentPane().setLayout(null);
 
-	public static void setClientesConectados(ArrayList<EscuchaCliente> clientesConectados) {
-		Servidor.clientesConectados = clientesConectados;
-	}
+		JScrollPane scrollPane = new JScrollPane();
+		scrollPane.setBounds(12, 13, 512, 434);
+		ventana.getContentPane().add(scrollPane);
+		log.setFont(new Font("Comic Sans MS", Font.PLAIN, 13));
+		log.setEditable(false);
+		
+		scrollPane.setViewportView(log);
+		
+		final JButton botonIniciar = new JButton();
+		final JButton botonDetener = new JButton();
+		botonIniciar.setText("Start");
+		botonIniciar.setBounds(354, 459, 170, 50);
+		botonIniciar.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				server = new Thread(new Server());
+				server.start();
+				botonIniciar.setEnabled(false);
+				botonDetener.setEnabled(true);
+			}
+		});
 
-	public static ArrayList<String> getUsuariosConectados() {
-		return UsuariosConectados;
-	}
-	
-	public static ArrayList<Socket> getSocketsConectados() {
-		return SocketsConectados;
-	}
+		ventana.getContentPane().add(botonIniciar);
 
-	public static void setSocketsConectados(ArrayList<Socket> socketsConectados) {
-		SocketsConectados = socketsConectados;
-	}
+		botonDetener.setText("Stop");
+		botonDetener.setBounds(12, 459, 184, 50);
+		botonDetener.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				try {
+					estadoServer = false;
+					UsuariosConectados = new ArrayList<String>();
+					server.stop();
+					connectionsListener.stop();
+					for (ClientListener cliente : clientesConectados) {
+						cliente.getSalida().close();
+						cliente.getEntrada().close();
+						cliente.getSocket().close();
+					}
+					serverSocket.close();
+					log.append("Server stopped." + System.lineSeparator());
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
 
-	public static boolean loguearUsuario(PaqueteUsuario user) {
-		boolean result = true;
-		if(UsuariosConectados.contains(user.getUsername())) {
-			result = false;
-		}
-		if (result) {
-			Servidor.log.append(user.getUsername() + " logged in" + System.lineSeparator());
-			return true;
-		} else {
-			Servidor.log.append(user.getUsername() + " is already logged in" + System.lineSeparator());
-			return false;
-		}
-	}
-	
-	public static Map<String, Socket> getPersonajesConectados() {
-		return mapConectados;
-	}
-
-	public static void setPersonajesConectados(Map<String, Socket> personajesConectados) {
-		Servidor.mapConectados = personajesConectados;
+				botonDetener.setEnabled(false);
+				botonIniciar.setEnabled(true);
+			}
+		});
+		botonDetener.setEnabled(false);
+		ventana.getContentPane().add(botonDetener);
+		ventana.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+		
+		ventana.addWindowListener(new WindowAdapter() {
+			public void windowClosing(WindowEvent evt) {
+				if (serverSocket != null) {
+					try {
+						estadoServer = false;
+						UsuariosConectados = new ArrayList<String>();
+						server.stop();
+						connectionsListener.stop();
+						for (ClientListener cliente : clientesConectados) {
+							cliente.getSalida().close();
+							cliente.getEntrada().close();
+							cliente.getSocket().close();
+						}
+						serverSocket.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+				System.exit(0);
+			}
+		});
+		ventana.setVisible(true);
 	}
 }
