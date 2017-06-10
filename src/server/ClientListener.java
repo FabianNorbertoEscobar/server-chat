@@ -7,10 +7,10 @@ import java.net.Socket;
 
 import com.google.gson.Gson;
 
-import client.Comando;
+import client.Mode;
 import client.Paquete;
-import client.PaqueteDeUsuarios;
-import client.PaqueteMensaje;
+import client.Usuarios;
+import client.ConjuntoMensaje;
 import client.Usuario;
 
 public class ClientListener extends Thread {
@@ -22,8 +22,8 @@ public class ClientListener extends Thread {
 	private final Gson gson = new Gson();
 	
 	private Usuario usuario;
-	private PaqueteDeUsuarios paqueteDeUsuarios;
-	private PaqueteMensaje paqueteMensaje;
+	private Usuarios usuarios;
+	private ConjuntoMensaje conjuntoMensaje;
 
 	
 	public Socket getSocket() {
@@ -61,18 +61,18 @@ public class ClientListener extends Thread {
 			
 			String cadenaLeida = (String) entrada.readObject();
 		
-			while (!((paquete = gson.fromJson(cadenaLeida, Paquete.class)).getComando() == Comando.DISCONNECT)) {							
-				switch (paquete.getComando()) {
+			while (!((paquete = gson.fromJson(cadenaLeida, Paquete.class)).getMode() == Mode.DISCONNECT)) {							
+				switch (paquete.getMode()) {
 						
-					case Comando.LOGIN:
-						paqueteSv.setComando(Comando.LOGIN);
+					case Mode.LOGIN:
+						paqueteSv.setMode(Mode.LOGIN);
 
 						usuario = (Usuario) (gson.fromJson(cadenaLeida, Usuario.class));
 
 						if (Server.loguearUsuario(usuario)) {
 							
 							usuario.setListaDeConectados(Server.UsuariosConectados);
-							usuario.setComando(Comando.LOGIN);
+							usuario.setMode(Mode.LOGIN);
 							usuario.setMensaje(Paquete.SUCCESS);
 							
 							Server.UsuariosConectados.add(usuario.getUsername());
@@ -105,29 +105,29 @@ public class ClientListener extends Thread {
 							return;
 						}
 						
-					case Comando.PRIVATE:
-						paqueteMensaje = (PaqueteMensaje) (gson.fromJson(cadenaLeida, PaqueteMensaje.class));
-						paqueteMensaje.setComando(Comando.PRIVATE);
+					case Mode.PRIVATE:
+						conjuntoMensaje = (ConjuntoMensaje) (gson.fromJson(cadenaLeida, ConjuntoMensaje.class));
+						conjuntoMensaje.setMode(Mode.PRIVATE);
 
-						Socket s1 = Server.mapConectados.get(paqueteMensaje.getUserReceptor());
+						Socket s1 = Server.mapConectados.get(conjuntoMensaje.getUserReceptor());
 						
 						for (ClientListener conectado : Server.getClientesConectados()) {
 							if(conectado.getSocket() == s1)	{
-								conectado.getSalida().writeObject(gson.toJson(paqueteMensaje));	
+								conectado.getSalida().writeObject(gson.toJson(conjuntoMensaje));	
 							}
 						}
 
 						break;
 						
-					case Comando.BROADCAST:
-						paqueteMensaje = (PaqueteMensaje) (gson.fromJson(cadenaLeida, PaqueteMensaje.class));
-						paqueteMensaje.setComando(Comando.BROADCAST);
+					case Mode.BROADCAST:
+						conjuntoMensaje = (ConjuntoMensaje) (gson.fromJson(cadenaLeida, ConjuntoMensaje.class));
+						conjuntoMensaje.setMode(Mode.BROADCAST);
 						
-						Socket s2 = Server.mapConectados.get(paqueteMensaje.getUserEmisor());
+						Socket s2 = Server.mapConectados.get(conjuntoMensaje.getUserEmisor());
 
 						for (ClientListener conectado : Server.getClientesConectados()) {
 							if(conectado.getSocket() != s2)	{
-								conectado.getSalida().writeObject(gson.toJson(paqueteMensaje));
+								conectado.getSalida().writeObject(gson.toJson(conjuntoMensaje));
 							}
 						}
 
@@ -157,9 +157,9 @@ public class ClientListener extends Thread {
 			Server.getClientesConectados().remove(this);
 
 			for (ClientListener conectado : Server.getClientesConectados()) {
-				paqueteDeUsuarios = new PaqueteDeUsuarios(Server.getUsuariosConectados());
-				paqueteDeUsuarios.setComando(Comando.CONNECT);
-				conectado.salida.writeObject(gson.toJson(paqueteDeUsuarios, PaqueteDeUsuarios.class));
+				usuarios = new Usuarios(Server.getUsuariosConectados());
+				usuarios.setMode(Mode.CONNECT);
+				conectado.salida.writeObject(gson.toJson(usuarios, Usuarios.class));
 			}
 
 			Server.log.append(paquete.getIp() + " has disconnected." + System.lineSeparator());

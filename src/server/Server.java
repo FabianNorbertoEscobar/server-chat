@@ -17,7 +17,7 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 
-import client.PaqueteMensaje;
+import client.ConjuntoMensaje;
 import client.Usuario;
 import java.awt.TextArea;
 import java.awt.Color;

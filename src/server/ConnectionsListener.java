@@ -2,8 +2,8 @@ package server;
 
 import com.google.gson.Gson;
 
-import client.Comando;
-import client.PaqueteDeUsuarios;
+import client.Mode;
+import client.Usuarios;
 
 public class ConnectionsListener extends Thread {
 	
@@ -19,8 +19,8 @@ public class ConnectionsListener extends Thread {
 
 					for (ClientListener conectado : Server.getClientesConectados()) {
 						if(conectado.getUsuario().getEstado()){
-							PaqueteDeUsuarios pdu = (PaqueteDeUsuarios) new PaqueteDeUsuarios(Server.getUsuariosConectados()).clone();
-							pdu.setComando(Comando.CONNECT);
+							Usuarios pdu = (Usuarios) new Usuarios(Server.getUsuariosConectados()).clone();
+							pdu.setMode(Mode.CONNECT);
 							conectado.getSalida().writeObject(gson.toJson(pdu));		
 						}
 					}
