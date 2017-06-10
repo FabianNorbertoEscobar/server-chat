@@ -4,26 +4,23 @@ import com.google.gson.Gson;
 
 import client.Comando;
 import client.PaqueteDeUsuarios;
-import client.PaqueteUsuario;
 
-public class AtencionConexiones extends Thread {
+public class ConnectionsListener extends Thread {
 	
 	private final Gson gson = new Gson();
 
-	public AtencionConexiones() {
-	}
+	public ConnectionsListener() {}
 
 	public void run() {
 		synchronized(this){
 			try {
 				while (true) {
-					// Espero a que se conecte alguien
 					wait();
-					// Le reenvio la conexion a todos
+
 					for (EscuchaCliente conectado : Servidor.getClientesConectados()) {
 						if(conectado.getPaqueteUsuario().getEstado()){
 							PaqueteDeUsuarios pdu = (PaqueteDeUsuarios) new PaqueteDeUsuarios(Servidor.getUsuariosConectados()).clone();
-							pdu.setComando(Comando.CONEXION);
+							pdu.setComando(Comando.CONNECT);
 							conectado.getSalida().writeObject(gson.toJson(pdu));		
 						}
 					}

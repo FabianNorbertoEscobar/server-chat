@@ -20,6 +20,8 @@ import javax.swing.JScrollPane;
 import client.PaqueteMensaje;
 import client.PaqueteUsuario;
 import java.awt.TextArea;
+import java.awt.Color;
+import java.awt.Font;
 
 public class Servidor extends Thread {
 	public static ArrayList<Socket> SocketsConectados = new ArrayList<Socket>();
@@ -28,21 +30,22 @@ public class Servidor extends Thread {
 	public static Map<String, Socket> mapConectados = new HashMap<>();
 	
 	private static ServerSocket serverSocket;
-	private final int puerto = 9999;
+	private final int puerto = 3000;
 	
 	private static Thread server;
 	
 	static TextArea log = new TextArea();
 	static boolean estadoServer;
 	
-	public static AtencionConexiones atencionConexiones;
+	public static ConnectionsListener connectionsListener;
 	
 	public static void main(String[] args) {
-		cargarInterfaz();
+		load();
 	}
 	
-	private static void cargarInterfaz() {
-		JFrame ventana = new JFrame("Servidor del Chat");
+	private static void load() {
+		JFrame ventana = new JFrame("Chat Server");
+		ventana.getContentPane().setBackground(Color.PINK);
 		ventana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		ventana.setSize(542, 538);
 		ventana.setResizable(false);
@@ -52,6 +55,7 @@ public class Servidor extends Thread {
 		JScrollPane scrollPane = new JScrollPane();
 		scrollPane.setBounds(12, 13, 512, 434);
 		ventana.getContentPane().add(scrollPane);
+		log.setFont(new Font("Comic Sans MS", Font.PLAIN, 13));
 		log.setEditable(false);
 		
 		scrollPane.setViewportView(log);
@@ -59,7 +63,7 @@ public class Servidor extends Thread {
 		final JButton botonIniciar = new JButton();
 		final JButton botonDetener = new JButton();
 		botonIniciar.setText("Start");
-		botonIniciar.setBounds(12, 460, 100, 30);
+		botonIniciar.setBounds(354, 459, 170, 50);
 		botonIniciar.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				server = new Thread(new Servidor());
@@ -72,14 +76,14 @@ public class Servidor extends Thread {
 		ventana.getContentPane().add(botonIniciar);
 
 		botonDetener.setText("Stop");
-		botonDetener.setBounds(424, 460, 100, 30);
+		botonDetener.setBounds(12, 459, 184, 50);
 		botonDetener.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				try {
 					estadoServer = false;
 					UsuariosConectados = new ArrayList<String>();
 					server.stop();
-					atencionConexiones.stop();
+					connectionsListener.stop();
 					for (EscuchaCliente cliente : clientesConectados) {
 						cliente.getSalida().close();
 						cliente.getEntrada().close();
@@ -106,7 +110,7 @@ public class Servidor extends Thread {
 						estadoServer = false;
 						UsuariosConectados = new ArrayList<String>();
 						server.stop();
-						atencionConexiones.stop();
+						connectionsListener.stop();
 						for (EscuchaCliente cliente : clientesConectados) {
 							cliente.getSalida().close();
 							cliente.getEntrada().close();
@@ -129,21 +133,20 @@ public class Servidor extends Thread {
 	public void run() {
 		try {
 			estadoServer = true;
-			log.append("Iniciando el servidor..." + System.lineSeparator());
+			log.append("Server started correctly." + System.lineSeparator());
 			serverSocket = new ServerSocket(puerto);
-			log.append("Servidor esperando conexiones..." + System.lineSeparator());
+			log.append("Waiting for connections on port " + puerto + " ..." + System.lineSeparator());
 			String ipRemota;
 			
-			atencionConexiones = new AtencionConexiones();
-			atencionConexiones.start();
+			connectionsListener = new ConnectionsListener();
+			connectionsListener.start();
 		
 			while (estadoServer) {
 				Socket cliente = serverSocket.accept();
-				//Agrego el Socket a la lista de Sockets
 				SocketsConectados.add(cliente);
 				
 				ipRemota = cliente.getInetAddress().getHostAddress();
-				log.append(ipRemota + " se ha conectado" + System.lineSeparator());
+				log.append(ipRemota + " connected" + System.lineSeparator());
 
 				ObjectOutputStream salida = new ObjectOutputStream(cliente.getOutputStream());
 				ObjectInputStream entrada = new ObjectInputStream(cliente.getInputStream());
@@ -153,7 +156,6 @@ public class Servidor extends Thread {
 				clientesConectados.add(atencion);
 			}
 		} catch (Exception e) {
-			log.append("Fallo la conexión." + System.lineSeparator());
 			e.printStackTrace();
 		}
 	}
@@ -183,45 +185,11 @@ public class Servidor extends Thread {
 		if(UsuariosConectados.contains(user.getUsername())) {
 			result = false;
 		}
-		// Si existe inicio sesion
 		if (result) {
-			Servidor.log.append("El usuario " + user.getUsername() + " ha iniciado sesión." + System.lineSeparator());
+			Servidor.log.append(user.getUsername() + " logged in" + System.lineSeparator());
 			return true;
 		} else {
-			// Si no existe informo y devuelvo false
-			Servidor.log.append("El usuario " + user.getUsername() + " ya se encuentra logeado." + System.lineSeparator());
-			return false;
-		}
-	}
-
-	public static boolean mensajeAUsuario(PaqueteMensaje pqm) {
-		boolean result = true;
-		if(!UsuariosConectados.contains(pqm.getUserReceptor())) {
-			result = false;
-		}
-		// Si existe inicio sesion
-		if (result) {
-			Servidor.log.append(pqm.getUserEmisor() + " envió mensaje a " + pqm.getUserReceptor() + System.lineSeparator());
-				return true;
-		} else {
-			// Si no existe informo y devuelvo false
-			Servidor.log.append("El mensaje para " + pqm.getUserReceptor() + " no se envió, ya que se encuentra desconectado." + System.lineSeparator());
-			return false;
-		}
-	}
-	
-	public static boolean mensajeAAll(int contador) {
-		boolean result = true;
-		if(UsuariosConectados.size() != contador+1) {
-			result = false;
-		}
-		// Si existe inicio sesion
-		if (result) {
-			Servidor.log.append("Se ha enviado un mensaje a todos los usuarios" + System.lineSeparator());
-				return true;
-		} else {
-			// Si no existe informo y devuelvo false
-			Servidor.log.append("Uno o más de todos los usuarios se ha desconectado, se ha mandado el mensaje a los demas." + System.lineSeparator());
+			Servidor.log.append(user.getUsername() + " is already logged in" + System.lineSeparator());
 			return false;
 		}
 	}

@@ -40,33 +40,29 @@ public class EscuchaCliente extends Thread {
 			
 			String cadenaLeida = (String) entrada.readObject();
 		
-			while (!((paquete = gson.fromJson(cadenaLeida, Paquete.class)).getComando() == Comando.DESCONECTAR)) {							
+			while (!((paquete = gson.fromJson(cadenaLeida, Paquete.class)).getComando() == Comando.DISCONNECT)) {							
 				switch (paquete.getComando()) {
 						
-					case Comando.INICIOSESION:
-						paqueteSv.setComando(Comando.INICIOSESION);
-						
-						// Recibo el paquete usuario
+					case Comando.LOGIN:
+						paqueteSv.setComando(Comando.LOGIN);
+
 						paqueteUsuario = (PaqueteUsuario) (gson.fromJson(cadenaLeida, PaqueteUsuario.class));
-						
-						// Si se puede loguear el usuario le envio un mensaje de exito y el paquete usuario con los datos
+
 						if (Servidor.loguearUsuario(paqueteUsuario)) {
 							
 							paqueteUsuario.setListaDeConectados(Servidor.UsuariosConectados);
-							paqueteUsuario.setComando(Comando.INICIOSESION);
+							paqueteUsuario.setComando(Comando.LOGIN);
 							paqueteUsuario.setMensaje(Paquete.msjExito);
 							
 							Servidor.UsuariosConectados.add(paqueteUsuario.getUsername());
-							
-							// Consigo el socket, y entonces ahora pongo el username y el socket en el map
+
 							int index = Servidor.UsuariosConectados.indexOf(paqueteUsuario.getUsername());
 							Servidor.mapConectados.put(paqueteUsuario.getUsername(), Servidor.SocketsConectados.get(index));
 							
 							salida.writeObject(gson.toJson(paqueteUsuario));
-							
-							// COMO SE CONECTO 1 LE DIGO AL SERVER QUE LE MANDE A TODOS LOS QUE SE CONECTAN
-							synchronized(Servidor.atencionConexiones){
-								Servidor.atencionConexiones.notify();
+
+							synchronized(Servidor.connectionsListener){
+								Servidor.connectionsListener.notify();
 							}
 							break;
 							
@@ -88,38 +84,33 @@ public class EscuchaCliente extends Thread {
 							return;
 						}
 						
-					case Comando.TALK:
+					case Comando.PRIVATE:
 						paqueteMensaje = (PaqueteMensaje) (gson.fromJson(cadenaLeida, PaqueteMensaje.class));
-						if (Servidor.mensajeAUsuario(paqueteMensaje)) {
+						paqueteMensaje.setComando(Comando.PRIVATE);
 
-							paqueteMensaje.setComando(Comando.TALK);
-							
-							Socket s1 = Servidor.mapConectados.get(paqueteMensaje.getUserReceptor());
-							
-							for (EscuchaCliente conectado : Servidor.getClientesConectados()) {
-								if(conectado.getSocket() == s1)	{
-									conectado.getSalida().writeObject(gson.toJson(paqueteMensaje));	
-								}
+						Socket s1 = Servidor.mapConectados.get(paqueteMensaje.getUserReceptor());
+						
+						for (EscuchaCliente conectado : Servidor.getClientesConectados()) {
+							if(conectado.getSocket() == s1)	{
+								conectado.getSalida().writeObject(gson.toJson(paqueteMensaje));	
 							}
-							
-						} else {
-							System.out.println("Server: Mensaje No Enviado!");
 						}
+
 						break;
 						
-					case Comando.CHATALL:
+					case Comando.BROADCAST:
 						paqueteMensaje = (PaqueteMensaje) (gson.fromJson(cadenaLeida, PaqueteMensaje.class));
-						paqueteMensaje.setComando(Comando.CHATALL);
+						paqueteMensaje.setComando(Comando.BROADCAST);
 						
-						Socket s1 = Servidor.mapConectados.get(paqueteMensaje.getUserEmisor());
+						Socket s2 = Servidor.mapConectados.get(paqueteMensaje.getUserEmisor());
 						int count = 0;
 						for (EscuchaCliente conectado : Servidor.getClientesConectados()) {
-							if(conectado.getSocket() != s1)	{
+							if(conectado.getSocket() != s2)	{
 								conectado.getSalida().writeObject(gson.toJson(paqueteMensaje));
 								count++;
 							}
 						}
-						Servidor.mensajeAAll(count);
+
 						break;
 						
 					default:
@@ -132,7 +123,7 @@ public class EscuchaCliente extends Thread {
 					cadenaLeida = (String) entrada.readObject();
 				}
 			}
-			Servidor.log.append(paqueteUsuario.getUsername() + " se ha desconectado." + System.lineSeparator());
+			Servidor.log.append(paqueteUsuario.getUsername() + " has disconnected." + System.lineSeparator());
 			
 			entrada.close();
 			salida.close();
@@ -146,14 +137,13 @@ public class EscuchaCliente extends Thread {
 
 			for (EscuchaCliente conectado : Servidor.getClientesConectados()) {
 				paqueteDeUsuarios = new PaqueteDeUsuarios(Servidor.getUsuariosConectados());
-				paqueteDeUsuarios.setComando(Comando.CONEXION);
+				paqueteDeUsuarios.setComando(Comando.CONNECT);
 				conectado.salida.writeObject(gson.toJson(paqueteDeUsuarios, PaqueteDeUsuarios.class));
 			}
 
-			Servidor.log.append(paquete.getIp() + " se ha desconectado." + System.lineSeparator());
+			Servidor.log.append(paquete.getIp() + " has disconnected." + System.lineSeparator());
 
 		} catch (IOException | ClassNotFoundException e) {
-			Servidor.log.append("Error de conexion: " + e.getMessage() + System.lineSeparator());
 			e.printStackTrace();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
