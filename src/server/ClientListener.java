@@ -8,7 +8,7 @@ import java.net.Socket;
 import com.google.gson.Gson;
 
 import client.Mode;
-import client.Paquete;
+import client.Conjunto;
 import client.Usuarios;
 import client.ConjuntoMensaje;
 import client.Usuario;
@@ -55,17 +55,17 @@ public class ClientListener extends Thread {
 
 	public void run() {
 		try {
-			Paquete paquete;
-			Paquete paqueteSv = new Paquete(null, 0);
+			Conjunto conjunto;
+			Conjunto conjuntoSv = new Conjunto(null, 0);
 			Usuario usuario = new Usuario();
 			
 			String cadenaLeida = (String) entrada.readObject();
 		
-			while (!((paquete = gson.fromJson(cadenaLeida, Paquete.class)).getMode() == Mode.DISCONNECT)) {							
-				switch (paquete.getMode()) {
+			while (!((conjunto = gson.fromJson(cadenaLeida, Conjunto.class)).getMode() == Mode.DISCONNECT)) {							
+				switch (conjunto.getMode()) {
 						
 					case Mode.LOGIN:
-						paqueteSv.setMode(Mode.LOGIN);
+						conjuntoSv.setMode(Mode.LOGIN);
 
 						usuario = (Usuario) (gson.fromJson(cadenaLeida, Usuario.class));
 
@@ -73,7 +73,7 @@ public class ClientListener extends Thread {
 							
 							usuario.setListaDeConectados(Server.UsuariosConectados);
 							usuario.setMode(Mode.LOGIN);
-							usuario.setMensaje(Paquete.SUCCESS);
+							usuario.setMensaje(Conjunto.SUCCESS);
 							
 							Server.UsuariosConectados.add(usuario.getUsername());
 
@@ -88,8 +88,8 @@ public class ClientListener extends Thread {
 							break;
 							
 						} else {
-							paqueteSv.setMensaje(Paquete.FAILURE);
-							salida.writeObject(gson.toJson(paqueteSv));
+							conjuntoSv.setMensaje(Conjunto.FAILURE);
+							salida.writeObject(gson.toJson(conjuntoSv));
 							synchronized (this) {
 								this.wait(200);
 							}
@@ -97,7 +97,7 @@ public class ClientListener extends Thread {
 							salida.close();
 							
 							Server.SocketsConectados.remove(socket);
-							Server.getClientesConectados().remove(this);
+							Server.getClientsConectados().remove(this);
 							
 							socket.close();
 							this.stop();
@@ -111,7 +111,7 @@ public class ClientListener extends Thread {
 
 						Socket s1 = Server.mapConectados.get(conjuntoMensaje.getUserReceptor());
 						
-						for (ClientListener conectado : Server.getClientesConectados()) {
+						for (ClientListener conectado : Server.getClientsConectados()) {
 							if(conectado.getSocket() == s1)	{
 								conectado.getSalida().writeObject(gson.toJson(conjuntoMensaje));	
 							}
@@ -125,7 +125,7 @@ public class ClientListener extends Thread {
 						
 						Socket s2 = Server.mapConectados.get(conjuntoMensaje.getUserEmisor());
 
-						for (ClientListener conectado : Server.getClientesConectados()) {
+						for (ClientListener conectado : Server.getClientsConectados()) {
 							if(conectado.getSocket() != s2)	{
 								conectado.getSalida().writeObject(gson.toJson(conjuntoMensaje));
 							}
@@ -154,15 +154,15 @@ public class ClientListener extends Thread {
 			Server.SocketsConectados.remove(index);
 			Server.getPersonajesConectados().remove(usuario.getUsername());
 			Server.getUsuariosConectados().remove(usuario.getUsername());
-			Server.getClientesConectados().remove(this);
+			Server.getClientsConectados().remove(this);
 
-			for (ClientListener conectado : Server.getClientesConectados()) {
+			for (ClientListener conectado : Server.getClientsConectados()) {
 				usuarios = new Usuarios(Server.getUsuariosConectados());
 				usuarios.setMode(Mode.CONNECT);
 				conectado.salida.writeObject(gson.toJson(usuarios, Usuarios.class));
 			}
 
-			Server.log.append(paquete.getIp() + " has disconnected." + System.lineSeparator());
+			Server.log.append(conjunto.getIp() + " has disconnected." + System.lineSeparator());
 
 		} catch (IOException | ClassNotFoundException e) {
 			e.printStackTrace();

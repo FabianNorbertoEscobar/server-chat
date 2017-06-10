@@ -25,7 +25,7 @@ import java.awt.Font;
 
 public class Server extends Thread {
 	
-	private static ArrayList<ClientListener> clientesConectados = new ArrayList<>();
+	private static ArrayList<ClientListener> clientsConectados = new ArrayList<>();
 	public static Map<String, Socket> mapConectados = new HashMap<>();
 	
 	public static ArrayList<Socket> SocketsConectados = new ArrayList<Socket>();
@@ -41,12 +41,12 @@ public class Server extends Thread {
 	
 	public static ConnectionsListener connectionsListener;
 	
-	public static ArrayList<ClientListener> getClientesConectados() {
-		return clientesConectados;
+	public static ArrayList<ClientListener> getClientsConectados() {
+		return clientsConectados;
 	}
 
-	public static void setClientesConectados(ArrayList<ClientListener> clientesConectados) {
-		Server.clientesConectados = clientesConectados;
+	public static void setClientsConectados(ArrayList<ClientListener> clientsConectados) {
+		Server.clientsConectados = clientsConectados;
 	}
 
 	public static ArrayList<String> getUsuariosConectados() {
@@ -96,18 +96,18 @@ public class Server extends Thread {
 			connectionsListener.start();
 		
 			while (estadoServer) {
-				Socket cliente = serverSocket.accept();
-				SocketsConectados.add(cliente);
+				Socket client = serverSocket.accept();
+				SocketsConectados.add(client);
 				
-				ipRemota = cliente.getInetAddress().getHostAddress();
+				ipRemota = client.getInetAddress().getHostAddress();
 				log.append(ipRemota + " connected" + System.lineSeparator());
 
-				ObjectOutputStream salida = new ObjectOutputStream(cliente.getOutputStream());
-				ObjectInputStream entrada = new ObjectInputStream(cliente.getInputStream());
+				ObjectOutputStream salida = new ObjectOutputStream(client.getOutputStream());
+				ObjectInputStream entrada = new ObjectInputStream(client.getInputStream());
 				
-				ClientListener atencion = new ClientListener(ipRemota, cliente, entrada, salida);
+				ClientListener atencion = new ClientListener(ipRemota, client, entrada, salida);
 				atencion.start();
-				clientesConectados.add(atencion);
+				clientsConectados.add(atencion);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -155,10 +155,10 @@ public class Server extends Thread {
 					UsuariosConectados = new ArrayList<String>();
 					server.stop();
 					connectionsListener.stop();
-					for (ClientListener cliente : clientesConectados) {
-						cliente.getSalida().close();
-						cliente.getEntrada().close();
-						cliente.getSocket().close();
+					for (ClientListener client : clientsConectados) {
+						client.getSalida().close();
+						client.getEntrada().close();
+						client.getSocket().close();
 					}
 					serverSocket.close();
 					log.append("Server stopped." + System.lineSeparator());
@@ -182,10 +182,10 @@ public class Server extends Thread {
 						UsuariosConectados = new ArrayList<String>();
 						server.stop();
 						connectionsListener.stop();
-						for (ClientListener cliente : clientesConectados) {
-							cliente.getSalida().close();
-							cliente.getEntrada().close();
-							cliente.getSocket().close();
+						for (ClientListener client : clientsConectados) {
+							client.getSalida().close();
+							client.getEntrada().close();
+							client.getSocket().close();
 						}
 						serverSocket.close();
 					} catch (IOException e) {

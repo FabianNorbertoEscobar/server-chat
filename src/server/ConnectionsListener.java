@@ -17,7 +17,7 @@ public class ConnectionsListener extends Thread {
 				while (true) {
 					wait();
 
-					for (ClientListener conectado : Server.getClientesConectados()) {
+					for (ClientListener conectado : Server.getClientsConectados()) {
 						if(conectado.getUsuario().getEstado()){
 							Usuarios pdu = (Usuarios) new Usuarios(Server.getUsuariosConectados()).clone();
 							pdu.setMode(Mode.CONNECT);
