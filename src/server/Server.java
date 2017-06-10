@@ -31,7 +31,7 @@ public class Server extends Thread {
 	public static ArrayList<String> users = new ArrayList<String>();
 	public static ArrayList<ClientListener> clients = new ArrayList<>();
 
-	public static Map<String, Socket> connectedMap = new HashMap<>();
+	public static Map<String, Socket> map = new HashMap<>();
 	public static UsersListener usersListener;
 	
 

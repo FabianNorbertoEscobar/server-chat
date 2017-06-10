@@ -2,8 +2,8 @@ package server;
 
 import com.google.gson.Gson;
 
-import mensajeria.Comando;
-import mensajeria.PaqueteDeUsuarios;
+import client.Mode;
+import client.Users;
 
 public class UsersListener extends Thread {
 	
@@ -11,20 +11,20 @@ public class UsersListener extends Thread {
 
 	public void run() {
 		synchronized(this){
-			//try {
+			try {
 				while (true) {
 					wait();
-					for (ClientListener client: Server.getClients()) {
-						if(client.getUser().getState()){
-							User user = (User) new User(Server.getUsers()).clone();
-							user.setCommand(Command.CONNECTION);
-							client.getOutput().writeObject(gson.toJson(user));		
+					for (ClientListener client: Server.clients) {
+						if(client.user.state){
+							Users users = (Users) new Users(Server.users).clone();
+							users.mode = Mode.CONNECTION;
+							client.output.writeObject(gson.toJson(users));		
 						}
 					}
 				}
-			//} catch (Exception e) {
-			//	e.printStackTrace();
-			//}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
 	}
 }

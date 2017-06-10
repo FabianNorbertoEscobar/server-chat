@@ -7,11 +7,16 @@ import java.net.Socket;
 
 import com.google.gson.Gson;
 
-import mensajeria.Comando;
-import mensajeria.Paquete;
-import mensajeria.PaqueteDeUsuarios;
-import mensajeria.PaqueteMensaje;
-import mensajeria.PaqueteUsuario;
+import client.Container;
+import client.Message;
+import client.Mode;
+import client.User;
+import client.Users;
+import client.Mode;
+import client.Container;
+import client.Users;
+import client.Message;
+import client.User;
 
 public class ClientListener extends Thread {
 
@@ -34,17 +39,17 @@ public class ClientListener extends Thread {
 
 	public void run() {
 		try {
-			Paquete psv = new Paquete(null, 0);
+			Container container2 = new Container(null, 0);
 			user = new User();
 			
 			String line = (String) input.readObject();
-			Paquete p = gson.fromJson(line, Paquete.class);
+			Container p = gson.fromJson(line, Container.class);
 
-			while (p.mode != Mode.STOP) {							
-				switch (p.getCommand()) {
+			while (p.mode != Mode.DISCONNECT) {
+				switch (p.mode) {
 						
 					case Mode.LOGIN:
-						psv.setCommand(Command.LOGIN);
+						container2.mode = p.mode;
 						user = (User) (gson.fromJson(line, User.class));
 
 						String name = user.name;
@@ -52,7 +57,7 @@ public class ClientListener extends Thread {
 
 						user.users = Server.users;
 						user.mode = Mode.LOGIN;
-						user.message = 1;
+						user.message = "1";
 						
 						Server.users.add(name);
 						Server.map.put(name, Server.sockets.get(Server.users.indexOf(name))); // size - 1
@@ -66,11 +71,11 @@ public class ClientListener extends Thread {
 						break;
 						
 					case Mode.PRIVATE:
-						message = (Message) (gson.fromJson(line, Message.class));
+						Message message = (Message) (gson.fromJson(line, Message.class));
 						message.mode = Mode.PRIVATE;
 						
 						for (ClientListener client : Server.clients) {
-							if(client.socket == Server.map.get(message.getReceiver()))	{
+							if(client.socket == Server.map.get(message.receiver))	{
 								client.output.writeObject(gson.toJson(message));	
 							}
 						}
@@ -79,10 +84,10 @@ public class ClientListener extends Thread {
 						
 					case Mode.BROADCAST:
 						message = (Message) (gson.fromJson(line, Message.class));
-						message.setCommand(Mode.BROADCAST);
+						message.mode = p.mode;
 
 						for (ClientListener client : Server.clients) {
-							if(client.socket != Server.map.get(message.getSender()))	{
+							if(client.socket != Server.map.get(message.sender))	{
 								client.output.writeObject(gson.toJson(message));
 							}
 						}
@@ -94,12 +99,12 @@ public class ClientListener extends Thread {
 				}
 				
 				output.flush(); // ??
-				
+
 				synchronized (input) {
 					line = (String) input.readObject();
 				}
 				
-				p = gson.fromJson(line, Paquete.class);
+				p = gson.fromJson(line, Container.class);
 			}
 			
 			input.close();
@@ -107,19 +112,19 @@ public class ClientListener extends Thread {
 			socket.close();
 			Server.log(user.name + " disconnected.");
 
-			Server.clients().remove(this);
+			Server.clients.remove(this);
 			Server.sockets.remove(Server.users.indexOf(user.name));
-			Server.users().remove(user.name);
+			Server.users.remove(user.name);
 			Server.map.remove(user.name);
 			
 			
 			for (ClientListener client : Server.clients) {
-				users = new Users(Server.users());
-				users.mode = MODE.CONNECTION;
+				users = new Users(Server.users);
+				users.mode = Mode.CONNECTION;
 				client.output.writeObject(gson.toJson(users, Users.class));
 			}
 
-			Server.log(p.getIp() + " out");
+			Server.log(p.ip + " out");
 
 		}  catch (Exception e) {
 			e.printStackTrace();
